@@ -30,7 +30,12 @@ _last_run_status: dict = {
     "running": False,
     "lastRunTime": "",
     "lastRunResult": None,
+    "lastRunSuccess": None,
     "message": "",
+    "queryMode": "",
+    "queryDate": "",
+    "queryStart": "",
+    "queryEnd": "",
 }
 
 
@@ -90,6 +95,8 @@ def _do_attendance_check_async(start_date: str = None, end_date: str = None):
 
     try:
         _last_run_status["running"] = True
+        _last_run_status["lastRunResult"] = None
+        _last_run_status["lastRunSuccess"] = None
         _last_run_status["message"] = "正在执行..."
         _last_run_status["lastRunTime"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -104,15 +111,17 @@ def _do_attendance_check_async(start_date: str = None, end_date: str = None):
             result = run_attendance_check()
 
         _last_run_status["running"] = False
-        _last_run_status["lastRunResult"] = result or _load_latest_report()
-        if _last_run_status["lastRunResult"]:
+        _last_run_status["lastRunResult"] = result or None
+        _last_run_status["lastRunSuccess"] = bool(result)
+        if result:
             _last_run_status["message"] = "执行完成"
         else:
-            # run_attendance_check 在没有数据或发生异常时可能返回空字典。
-            # 不能继续显示“执行完成”，否则页面会掩盖真实状态。
+            # 不回退到上一次报告，避免失败后把旧周期结果显示成新查询结果。
             _last_run_status["message"] = "执行结束，但没有生成报告，请查看服务日志"
     except Exception as e:
         _last_run_status["running"] = False
+        _last_run_status["lastRunResult"] = None
+        _last_run_status["lastRunSuccess"] = False
         _last_run_status["message"] = f"执行失败: {e}"
     finally:
         _run_lock.release()
@@ -575,7 +584,13 @@ def _render(authenticated: bool, report=None):
     yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
     if report is None:
-        report = _load_latest_report()
+        # 执行中的新查询不展示旧报告；服务刚启动且尚未查询时才加载历史报告。
+        if _last_run_status["lastRunSuccess"] is True:
+            report = _last_run_status.get("lastRunResult")
+        elif _last_run_status["running"] or _last_run_status["lastRunSuccess"] is False:
+            report = None
+        else:
+            report = _load_latest_report()
 
     csv_path = _load_latest_csv_path(report)
 
@@ -590,6 +605,13 @@ def _render(authenticated: bool, report=None):
         selected_start = report.get("startDate") or today_str
         selected_end = report.get("endDate") or today_str
         is_period = report.get("isPeriod", False)
+    elif _last_run_status.get("queryMode") == "period":
+        is_period = True
+        selected_start = _last_run_status.get("queryStart") or today_str
+        selected_end = _last_run_status.get("queryEnd") or selected_start
+    elif _last_run_status.get("queryMode") == "single":
+        is_period = False
+        selected_date = _last_run_status.get("queryDate") or today_str
 
     return render_template_string(
         PAGE_TEMPLATE,
@@ -634,6 +656,10 @@ def trigger():
     if request.cookies.get("hr_auth") != "1":
         return _render(False)
 
+    mode = request.form.get("mode", "").strip().lower()
+    if mode not in {"single", "period"}:
+        mode = "period" if request.form.get("start", "").strip() else "single"
+
     # 解析查询范围，只使用当前模式对应的日期字段。
     target_start, target_end = _resolve_query_range(request.form)
 
@@ -641,6 +667,10 @@ def trigger():
         _last_run_status["message"] = "正在执行中，请稍候..."
     else:
         # 先同步更新状态，避免后台线程尚未启动时首页误显示“就绪”。
+        _last_run_status["queryMode"] = mode
+        _last_run_status["queryDate"] = request.form.get("date", "").strip() or target_start
+        _last_run_status["queryStart"] = target_start
+        _last_run_status["queryEnd"] = target_end
         _last_run_status["running"] = True
         _last_run_status["message"] = f"正在查询 {target_start} ~ {target_end} ..."
         thread = threading.Thread(
