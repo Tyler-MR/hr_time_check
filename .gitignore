@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+.token_cache.json
+.env
+output/
+
