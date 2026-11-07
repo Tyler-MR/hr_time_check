@@ -64,8 +64,10 @@ def run_attendance_check(
     print(f"{'=' * 80}")
 
     if not config.DINGTALK_APP_KEY or not config.DINGTALK_APP_SECRET:
-        print("[错误] 请先配置 DINGTALK_APP_KEY 和 DINGTALK_APP_SECRET！")
-        return {}
+        error_message = "请先配置考勤拉取应用的 DINGTALK_APP_KEY 和 DINGTALK_APP_SECRET！"
+        print(f"[错误] {error_message}")
+        # 抛出明确异常，让 Web 页面显示真实失败原因，避免被误认为查询没有响应。
+        raise RuntimeError(error_message)
 
     # 归一化查询范围参数
     if start_date and end_date:
