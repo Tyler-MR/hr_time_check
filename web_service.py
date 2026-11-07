@@ -222,9 +222,12 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
     font-size: 14px; font-weight: 600; cursor: pointer;
   }
   .aggregate-panel { margin-top: 12px; padding: 12px; background: #f7f9fb; border-radius: 10px; }
-  .aggregate-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+  .aggregate-tabs {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px; margin-bottom: 10px;
+  }
   .aggregate-tab {
-    flex: 1; padding: 8px; border: none; border-radius: 7px;
+    min-width: 0; padding: 8px 4px; border: none; border-radius: 7px;
     background: #e8eef5; color: #667; cursor: pointer; font-size: 12px;
   }
   .aggregate-tab.active { background: #0089ff; color: #fff; }
@@ -331,35 +334,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   <div id="resultPanel">
   <p class="meta">查询范围: {{ report.queryLabel }} | 阈值: {{ report.threshold }}</p>
   <p class="meta">生成时间: {{ report.generatedAt }}</p>
-
-  {% if report.employees %}
-  <div class="table-scroll">
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        {% if report.isPeriod %}<th>日期</th>{% endif %}
-        <th>姓名</th>
-        <th>下班卡</th>
-        <th>结果</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for emp in report.employees %}
-      <tr>
-        <td>{{ loop.index }}</td>
-        {% if report.isPeriod %}<td>{{ emp.date[5:] }}</td>{% endif %}
-        <td>{{ emp.userName }}</td>
-        <td>{{ emp.checkTime[11:] }}</td>
-        <td>{{ emp.timeResult }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% else %}
-  <p class="empty">该范围内没有员工在 18:30~18:45 之间打下班卡</p>
-  {% endif %}
+  <p class="meta">明细数据已收起，请在下方“聚合查看”中点击“明细数据”查看。</p>
   </div>
 </div>
 
@@ -372,6 +347,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
     <button class="aggregate-tab active" type="button" onclick="switchAggregate('person', this)">按人员</button>
     <button class="aggregate-tab" type="button" onclick="switchAggregate('department', this)">按部门</button>
     <button class="aggregate-tab" type="button" onclick="switchAggregate('position', this)">按职位</button>
+    <button class="aggregate-tab" type="button" onclick="switchAggregate('detail', this)">明细数据</button>
   </div>
 
   <div id="aggregate-person">
@@ -405,6 +381,37 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
       {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <div id="aggregate-detail" style="display:none">
+    {% if report.employees %}
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          {% if report.isPeriod %}<th>日期</th>{% endif %}
+          <th>姓名</th>
+          <th>下班卡</th>
+          <th>结果</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in report.employees %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          {% if report.isPeriod %}<td>{{ emp.date[5:] }}</td>{% endif %}
+          <td>{{ emp.userName }}</td>
+          <td>{{ emp.checkTime[11:] }}</td>
+          <td>{{ emp.timeResult }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="empty">该范围内没有员工在 18:30~18:45 之间打下班卡</p>
+    {% endif %}
   </div>
 </div>
 {% endif %}
@@ -459,7 +466,7 @@ function toggleResultPanel(button) {
 }
 
 function switchAggregate(mode, button) {
-  ['person', 'department', 'position'].forEach(function(name) {
+  ['person', 'department', 'position', 'detail'].forEach(function(name) {
     var section = document.getElementById('aggregate-' + name);
     if (section) section.style.display = (name === mode) ? 'block' : 'none';
   });
