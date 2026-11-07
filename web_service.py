@@ -268,6 +268,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   </div>
 
   <form method="POST" action="/trigger" id="queryForm">
+    <input type="hidden" name="mode" id="queryMode" value="{{ 'period' if is_period else 'single' }}">
     <!-- 单日模式 -->
     <div id="singleMode" style="display: {% if is_period %}none{% else %}block{% endif %}">
       <div class="date-field">
@@ -449,6 +450,8 @@ function switchMode(mode) {
   });
   document.getElementById('singleMode').style.display = (mode === 'single') ? 'block' : 'none';
   document.getElementById('periodMode').style.display = (mode === 'period') ? 'block' : 'none';
+  var modeInput = document.getElementById('queryMode');
+  if (modeInput) modeInput.value = mode;
 }
 
 function toggleAggregatePanel() {
@@ -476,6 +479,15 @@ function switchAggregate(mode, button) {
   if (button) button.classList.add('active');
 }
 
+// 快捷日期以服务端业务日期为基准，避免浏览器 UTC 时区导致日期少一天。
+var serverToday = "{{ today }}";
+
+function parseDateValue(value) {
+  var parts = value.split('-').map(Number);
+  // 使用本地构造函数，避免 new Date('yyyy-mm-dd') 按 UTC 解析。
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
 function fmt(d) {
   var m = String(d.getMonth() + 1).padStart(2, '0');
   var day = String(d.getDate()).padStart(2, '0');
@@ -483,15 +495,15 @@ function fmt(d) {
 }
 
 function setDate(daysAgo) {
-  var d = new Date();
+  var d = parseDateValue(serverToday);
   d.setDate(d.getDate() - daysAgo);
   document.getElementById('dateInput').value = fmt(d);
   switchMode('single');
 }
 
 function setPeriod(days) {
-  var end = new Date();
-  var start = new Date();
+  var end = parseDateValue(serverToday);
+  var start = parseDateValue(serverToday);
   start.setDate(start.getDate() - days);
   document.getElementById('startInput').value = fmt(start);
   document.getElementById('endInput').value = fmt(end);
@@ -526,6 +538,35 @@ document.getElementById('endInput')?.addEventListener('focus', function() {
 
 </body>
 </html>"""
+
+
+def _resolve_query_range(form_data) -> tuple[str, str]:
+    """根据当前查询模式解析日期范围，避免隐藏输入框污染提交参数。"""
+    mode = form_data.get("mode", "").strip().lower()
+    date_str = form_data.get("date", "").strip()
+    start_str = form_data.get("start", "").strip()
+    end_str = form_data.get("end", "").strip()
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
+    if mode == "single":
+        target = date_str or today_str
+        return target, target
+
+    if mode == "period":
+        # 周期模式允许只填写一端，另一端使用同一天，避免提交空范围。
+        target_start = start_str or end_str or date_str or today_str
+        target_end = end_str or start_str or date_str or today_str
+        if target_end < target_start:
+            target_start, target_end = target_end, target_start
+        return target_start, target_end
+
+    # 兼容没有 mode 字段的旧请求。
+    if start_str and end_str:
+        if end_str < start_str:
+            start_str, end_str = end_str, start_str
+        return start_str, end_str
+    target = date_str or today_str
+    return target, target
 
 
 def _render(authenticated: bool, report=None):
@@ -593,20 +634,8 @@ def trigger():
     if request.cookies.get("hr_auth") != "1":
         return _render(False)
 
-    # 解析查询范围
-    date_str = request.form.get("date", "").strip()
-    start_str = request.form.get("start", "").strip()
-    end_str = request.form.get("end", "").strip()
-
-    if start_str and end_str:
-        if end_str < start_str:
-            start_str, end_str = end_str, start_str
-        target_start, target_end = start_str, end_str
-    elif date_str:
-        target_start = target_end = date_str
-    else:
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        target_start = target_end = today_str
+    # 解析查询范围，只使用当前模式对应的日期字段。
+    target_start, target_end = _resolve_query_range(request.form)
 
     if _last_run_status["running"]:
         _last_run_status["message"] = "正在执行中，请稍候..."
