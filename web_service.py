@@ -266,7 +266,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
     <div class="tab {% if is_period %}active{% endif %}" onclick="switchMode('period')">周期</div>
   </div>
 
-  <form method="POST" action="/trigger" id="queryForm">
+  <form method="POST" action="/trigger" id="queryForm" onsubmit="return lockQueryForm(this)">
     <input type="hidden" name="mode" id="queryMode" value="{{ 'period' if is_period else 'single' }}">
     <!-- 单日模式 -->
     <div id="singleMode" style="display: {% if is_period %}none{% else %}block{% endif %}">
@@ -438,6 +438,15 @@ function switchMode(mode) {
   document.getElementById('periodMode').style.display = (mode === 'period') ? 'block' : 'none';
   var modeInput = document.getElementById('queryMode');
   if (modeInput) modeInput.value = mode;
+}
+
+// 提交后立即锁定按钮，避免网络请求期间重复点击或页面看起来没有反应。
+function lockQueryForm(form) {
+  var button = form.querySelector('button[type="submit"]');
+  if (!button || button.disabled) return false;
+  button.disabled = true;
+  button.textContent = '正在执行...';
+  return true;
 }
 
 function toggleAggregatePanel() {
