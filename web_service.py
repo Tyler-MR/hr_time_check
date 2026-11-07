@@ -132,20 +132,21 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #f5f5f5; color: #333; padding: 16px;
+    max-width: 760px; min-height: 100vh; margin: 0 auto;
+    background: #edf3f8; color: #223044; padding: 14px;
   }
   .header {
-    background: linear-gradient(135deg, #0089ff, #00b4ff);
-    color: #fff; padding: 20px 16px; border-radius: 12px;
-    text-align: center; margin-bottom: 16px;
+    background: linear-gradient(135deg, #176dff, #14b4e8);
+    color: #fff; padding: 22px 18px; border-radius: 18px;
+    text-align: left; margin-bottom: 14px; box-shadow: 0 8px 22px rgba(23,109,255,.18);
   }
-  .header h1 { font-size: 20px; font-weight: 600; }
-  .header p { font-size: 13px; opacity: 0.9; margin-top: 6px; }
+  .header h1 { font-size: 21px; font-weight: 800; }
+  .header p { font-size: 12px; opacity: 0.88; margin-top: 7px; }
   .card {
-    background: #fff; border-radius: 12px; padding: 16px;
-    margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    background: #fff; border: 1px solid #e1e9f2; border-radius: 16px; padding: 14px;
+    margin-bottom: 12px; box-shadow: 0 5px 16px rgba(40,68,100,.07);
   }
-  .card-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+  .card-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; }
   .btn {
     display: block; width: 100%; padding: 14px; border: none;
     border-radius: 10px; font-size: 16px; font-weight: 600;
@@ -153,7 +154,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
     text-decoration: none;
   }
   .btn:active { opacity: 0.7; }
-  .btn-primary { background: #0089ff; color: #fff; }
+  .btn-primary { background: #176dff; color: #fff; }
   .btn:disabled { background: #ccc; color: #999; cursor: not-allowed; }
   .status-badge {
     display: inline-block; padding: 3px 10px; border-radius: 20px;
@@ -162,9 +163,10 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   .status-running { background: #fff3e0; color: #e65100; }
   .status-idle { background: #e8f5e9; color: #2e7d32; }
   .status-error { background: #ffebee; color: #c62828; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { background: #f0f4f8; padding: 8px; text-align: left; font-weight: 600; }
-  td { padding: 8px; border-bottom: 1px solid #eee; }
+  .table-scroll { overflow-x: auto; border-radius: 12px; }
+  table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 12px; }
+  th { background: #eef4fa; color: #66778a; padding: 9px 8px; text-align: left; font-weight: 700; }
+  td { padding: 9px 8px; border-bottom: 1px solid #edf0f4; white-space: nowrap; }
   .meta { font-size: 12px; color: #999; margin-top: 8px; }
   .empty { text-align: center; color: #999; padding: 24px; font-size: 14px; }
   .pin-input {
@@ -186,7 +188,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
     font-size: 13px; font-weight: 500; cursor: pointer;
     background: #f0f4f8; color: #666; border: 1px solid transparent;
   }
-  .tab.active { background: #0089ff; color: #fff; }
+  .tab.active { background: #176dff; color: #fff; }
   .date-field { margin-bottom: 12px; }
   .date-field label {
     display: block; font-size: 12px; color: #888;
@@ -196,7 +198,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
     width: 100%; padding: 11px; border: 1px solid #ddd;
     border-radius: 10px; font-size: 15px; background: #fff;
   }
-  .date-field input:focus { border-color: #0089ff; outline: none; }
+  .date-field input:focus { border-color: #176dff; outline: none; }
   .quick-dates { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
   .quick-date {
     padding: 7px 12px; border-radius: 16px; background: #f0f4f8;
@@ -205,13 +207,13 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   .quick-date:active { background: #dbe7f3; }
   .hint { font-size: 11px; color: #aaa; margin-top: 6px; }
   .summary-box {
-    display: flex; gap: 12px; margin-top: 12px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px;
   }
   .summary-item {
     flex: 1; background: #f7f9fb; border-radius: 8px;
-    padding: 10px; text-align: center;
+    padding: 11px 5px; text-align: center;
   }
-  .summary-item .num { font-size: 18px; font-weight: 600; color: #0089ff; }
+  .summary-item .num { font-size: 20px; font-weight: 800; color: #176dff; }
   .summary-item .lbl { font-size: 11px; color: #999; margin-top: 2px; }
   .aggregate-toolbar { margin-top: 14px; }
   .aggregate-btn {
@@ -307,6 +309,10 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
       <div class="num">{{ report.totalExcluded if report else 0 }}</div>
       <div class="lbl">排除人员</div>
     </div>
+    <div class="summary-item">
+      <div class="num">{{ report.aggregates.byPerson|length if report and report.aggregates else 0 }}</div>
+      <div class="lbl">涉及人员</div>
+    </div>
   </div>
 
   <p class="meta">
@@ -327,6 +333,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   <p class="meta">生成时间: {{ report.generatedAt }}</p>
 
   {% if report.employees %}
+  <div class="table-scroll">
   <table>
     <thead>
       <tr>
@@ -349,6 +356,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <p class="empty">该范围内没有员工在 18:30~18:45 之间打下班卡</p>
   {% endif %}
