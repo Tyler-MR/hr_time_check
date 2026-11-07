@@ -4,6 +4,10 @@
 """
 
 import os
+from dotenv import load_dotenv
+
+# 本地 .env 已被 Git 忽略；系统环境变量优先，便于部署时覆盖。
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"), override=False)
 
 # ===== 钉钉应用凭证 =====
 DINGTALK_CORP_ID = os.environ.get("DINGTALK_CORP_ID", "")

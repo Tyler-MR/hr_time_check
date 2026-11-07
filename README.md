@@ -30,7 +30,7 @@ pip install -r requirements.txt
 
 ### 2. 配置
 
-凭证只通过环境变量读取，不写入代码。复制 `.env.example` 为 `.env`，或在启动服务前设置环境变量：
+凭证不写入代码。复制 `.env.example` 为项目目录下的 `.env` 并填写配置，程序启动时会自动读取；也可以在启动服务前设置环境变量，系统环境变量优先：
 
 ```bash
 export DINGTALK_CORP_ID="your_corp_id"
