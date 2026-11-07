@@ -403,11 +403,9 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 </div>
 {% endif %}
 
-{% if csv_path %}
 <div class="card">
-  <a class="btn btn-primary" href="/download-csv" style="text-decoration:none">下载 CSV 报表</a>
+  <a class="btn btn-primary" href="/download-xlsx" style="text-decoration:none">下载 Excel 报表</a>
 </div>
-{% endif %}
 
 {% else %}
 <div class="card">
@@ -556,21 +554,24 @@ def _resolve_query_range(form_data) -> tuple[str, str]:
     return target, target
 
 
+def _current_report():
+    """返回页面当前展示的报告，失败或执行中不回退到旧报告。"""
+    if _last_run_status["running"]:
+        return None
+    if _last_run_status["lastRunSuccess"] is True:
+        return _last_run_status.get("lastRunResult")
+    if _last_run_status["lastRunSuccess"] is False:
+        return None
+    return _load_latest_report()
+
+
 def _render(authenticated: bool, report=None):
     """统一渲染页面。"""
     today_str = datetime.now().strftime("%Y-%m-%d")
     yesterday_str = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
     if report is None:
-        # 执行中的新查询不展示旧报告；服务刚启动且尚未查询时才加载历史报告。
-        if _last_run_status["lastRunSuccess"] is True:
-            report = _last_run_status.get("lastRunResult")
-        elif _last_run_status["running"] or _last_run_status["lastRunSuccess"] is False:
-            report = None
-        else:
-            report = _load_latest_report()
-
-    csv_path = _load_latest_csv_path(report)
+        report = _current_report()
 
     # 判断当前是单日还是周期
     is_period = bool(report and report.get("isPeriod"))
@@ -596,7 +597,6 @@ def _render(authenticated: bool, report=None):
         authenticated=authenticated,
         status=_last_run_status,
         report=report,
-        csv_path=csv_path,
         is_period=is_period,
         selected_date=selected_date,
         selected_start=selected_start,
@@ -662,18 +662,24 @@ def trigger():
     return redirect("/")
 
 
-@app.route("/download-csv", methods=["GET"])
-def download_csv():
-    """下载与当前报表对应的 CSV 文件。"""
+@app.route("/download-xlsx", methods=["GET"])
+def download_xlsx():
+    """将当前页面报告导出为包含四个工作表的 Excel 文件。"""
     from flask import send_file
+    from reporter import build_excel_report
 
     if request.cookies.get("hr_auth") != "1":
-        return _render(True)
+        return "请先登录", 401
 
-    csv_path = _load_latest_csv_path(_load_latest_report())
-    if csv_path and os.path.exists(csv_path):
-        return send_file(csv_path, as_attachment=True, download_name=os.path.basename(csv_path))
-    return "暂无 CSV 文件", 404
+    report = _current_report()
+    if not report:
+        return "当前没有可下载的报告", 404
+    start = report.get("startDate", "report")
+    end = report.get("endDate", start)
+    suffix = f"{start}_{end}" if start != end else start
+    return send_file(build_excel_report(report), as_attachment=True,
+                     download_name=f"attendance_{suffix}.xlsx",
+                     mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
 @app.route("/logout", methods=["POST"])

@@ -9,8 +9,57 @@ import json
 import os
 from collections import Counter
 from datetime import datetime
+from io import BytesIO
+
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
 
 import config
+
+
+def build_excel_report(report: dict) -> BytesIO:
+    """根据页面显示的报告生成四个工作表的 Excel 文件。"""
+    employees = report.get("employees") or []
+    aggregates = report.get("aggregates") or build_aggregate_summary(employees)
+    book = Workbook()
+    book.remove(book.active)
+    sheets = [
+        ("按人员", ["人员", "部门", "职位", "次数"],
+         [[p.get("userName", ""), p.get("department", ""), p.get("position", ""), p.get("count", 0)]
+          for p in aggregates.get("byPerson", [])]),
+        ("按部门", ["部门", "次数"],
+         [[p.get("name", ""), p.get("count", 0)] for p in aggregates.get("byDepartment", [])]),
+        ("按职位", ["职位", "次数"],
+         [[p.get("name", ""), p.get("count", 0)] for p in aggregates.get("byPosition", [])]),
+        ("明细数据", ["序号", "日期", "姓名", "员工ID", "部门", "职位", "下班打卡时间", "打卡结果", "打卡来源", "位置结果"],
+         [[i, e.get("date", ""), e.get("userName", ""), e.get("userId", ""),
+           e.get("department", ""), e.get("position", ""), e.get("checkTime", ""),
+           e.get("timeResult", ""), e.get("sourceType", ""), e.get("locationResult", "")]
+          for i, e in enumerate(employees, 1)]),
+    ]
+    for name, headers, rows in sheets:
+        sheet = book.create_sheet(name)
+        sheet.append(headers)
+        for row in rows:
+            sheet.append(row)
+            # 员工姓名等外部字符串按文本保存，避免 Excel 将其识别成公式。
+            for cell in sheet[sheet.max_row]:
+                if isinstance(cell.value, str):
+                    cell.data_type = "s"
+        for cell in sheet[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor="176DFF")
+            cell.alignment = Alignment(vertical="center")
+        sheet.freeze_panes = "A2"
+        sheet.auto_filter.ref = sheet.dimensions
+        for col in sheet.columns:
+            width = max(len(str(cell.value or "")) for cell in col)
+            sheet.column_dimensions[get_column_letter(col[0].column)].width = min(max(width * 1.5 + 4, 12), 32)
+    output = BytesIO()
+    book.save(output)
+    output.seek(0)
+    return output
 
 
 def build_aggregate_summary(early_employees: list[dict]) -> dict:
