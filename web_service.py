@@ -184,11 +184,6 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
     letter-spacing: 8px; margin-bottom: 12px;
   }
   .pin-input:focus { border-color: #0089ff; }
-  .count-badge {
-    display: inline-block; background: #ff5722; color: #fff;
-    padding: 2px 12px; border-radius: 20px; font-size: 14px;
-    font-weight: 600; margin-left: 8px;
-  }
 
   /* 日期选择区域 */
   .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
@@ -244,11 +239,6 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   .aggregate-table th, .aggregate-table td { padding: 7px 6px; border-bottom: 1px solid #edf0f3; }
   .aggregate-table th { background: #eef4fa; }
   .aggregate-count { color: #0089ff; font-weight: 700; text-align: right; }
-  .collapse-btn {
-    float: right; padding: 5px 10px; border: 1px solid #d8e2ec;
-    border-radius: 7px; background: #f7f9fb; color: #557;
-    font-size: 12px; cursor: pointer;
-  }
 </style>
 </head>
 <body>
@@ -335,19 +325,6 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 </div>
 
 {% if report %}
-<div class="card">
-  <div class="card-title">
-    筛选结果
-    <span class="count-badge">{{ report.totalEarlyOffDuty }} 条</span>
-    <button class="collapse-btn" type="button" onclick="toggleResultPanel(this)">收起</button>
-  </div>
-  <div id="resultPanel">
-  <p class="meta">查询范围: {{ report.queryLabel }} | 阈值: {{ report.threshold }}</p>
-  <p class="meta">生成时间: {{ report.generatedAt }}</p>
-  <p class="meta">明细数据已收起，请在下方“聚合查看”中点击“明细数据”查看。</p>
-  </div>
-</div>
-
 {% if report.aggregates %}
 <div class="aggregate-toolbar">
   <button class="aggregate-btn" type="button" onclick="toggleAggregatePanel()">聚合查看</button>
@@ -467,14 +444,6 @@ function toggleAggregatePanel() {
   var panel = document.getElementById('aggregatePanel');
   if (!panel) return;
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-}
-
-function toggleResultPanel(button) {
-  var panel = document.getElementById('resultPanel');
-  if (!panel) return;
-  var collapsed = panel.style.display === 'none';
-  panel.style.display = collapsed ? 'block' : 'none';
-  if (button) button.textContent = collapsed ? '收起' : '展开';
 }
 
 function switchAggregate(mode, button) {
